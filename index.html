@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Przelot nad Polską</title>
+<meta name="description" content="Nocna migracja ptaków nad Polską jesienią 2026, odtworzona z radarów pogodowych OPERA.">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#0e1524;--panel:#151e31f2;--line:#2f3c58;--ink:#eef1f6;--ink2:#b8c2d3;--amber:#f2b24b;--sea:#6fc0ec}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,sans-serif}
+#map{position:absolute;inset:0 372px 92px 0;background:var(--bg)}
+#bar{position:absolute;left:0;right:372px;bottom:0;height:92px;padding:10px 20px;background:#111a2b;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+#row{display:flex;gap:12px;align-items:center}
+#play{background:var(--amber);color:#1a1405;border:0;padding:12px 18px;font-size:15px;font-weight:600;cursor:pointer;min-width:100px}
+button:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#track{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+#slide{width:100%;height:34px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;cursor:grab}
+#slide::-webkit-slider-runnable-track{height:12px;background:#2a3650;border-radius:6px}
+#slide::-moz-range-track{height:12px;background:#2a3650;border-radius:6px}
+#slide::-webkit-slider-thumb{-webkit-appearance:none;width:30px;height:30px;margin-top:-9px;border-radius:50%;background:var(--amber);border:3px solid #111a2b;box-shadow:0 0 0 1px var(--amber)}
+#slide::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--amber);border:3px solid #111a2b}
+#ticks{position:relative;height:16px;margin:0 15px;font:11px ui-monospace,monospace;color:var(--ink2)}
+#ticks span{position:absolute;transform:translateX(-50%)}
+#clock{font:600 16px ui-monospace,monospace;min-width:190px;text-align:right;white-space:pre-line;line-height:1.25}
+#box{position:absolute;top:0;right:0;bottom:0;width:372px;overflow-y:auto;z-index:800;background:#111a2b;border-left:1px solid var(--line);padding:14px 16px;display:flex;flex-direction:column;gap:9px}
+#box h1{font-size:17px;margin:0}#box p{margin:0;color:var(--ink2);font-size:12.5px}
+.k{display:flex;align-items:center;gap:8px;color:var(--ink2)}
+.ln{width:22px;flex:none;border-top:3px solid var(--amber)}.ln.a{border-top-color:#f7b23b66}.ln.p{border-top:3px solid #aeb6c4}.ln.r{border-top:7px solid #9cc4ee}
+label{display:flex;gap:6px;align-items:center;color:var(--ink2)}
+#sum{font:13px ui-monospace,monospace;color:var(--ink)}
+.leaflet-tooltip{background:#000c;border:1px solid var(--line);color:var(--ink);font:12px ui-monospace,monospace;white-space:pre}
+.leaflet-tooltip:before{display:none}
+.leaflet-container{background:var(--bg)}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.8) contrast(.8) saturate(.15)}
+#opts{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+#cal{flex:1 0 auto;display:flex;flex-direction:column;justify-content:space-evenly;gap:12px}
+.mon b{display:block;text-align:center;font-size:15px;font-weight:600;margin-bottom:6px}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.days i{font:12px system-ui;color:var(--ink2);text-align:center;padding-bottom:3px}
+.days span,.days button{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font:13.5px system-ui;font-variant-numeric:tabular-nums;border-radius:6px}
+.days span{color:#55617a}
+.days button{padding:0;border:0;cursor:pointer;background:transparent;color:var(--ink2)}
+.days button.l1{background:#f7b23b40;color:var(--ink)}
+.days button.l2{background:#f7b23b70;color:var(--ink)}
+.days button.l3{background:#f7b23bb0;color:#1a1405}
+.days button.l4{background:#f7b23b;color:#1a1405;font-weight:600}
+.days button:hover{box-shadow:inset 0 0 0 1px var(--ink2)}
+.days button.on{box-shadow:0 0 0 2px #111a2b,0 0 0 4px #fff;font-weight:700}
+#about{display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid var(--line)}
+html[lang=pl] .en,html[lang=en] .pl{display:none!important}
+#about>div{display:flex;flex-direction:column;gap:6px}
+#head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+#langs{display:flex;flex:none;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+#langs button{background:transparent;color:var(--ink2);border:0;padding:4px 9px;font:600 12px system-ui;cursor:pointer}
+#langs button.on{background:var(--amber);color:#1a1405}
+#about h2{font-size:15px;font-weight:600;margin:8px 0 0}
+#about ol,#about ul{margin:0;padding-left:18px;color:var(--ink2);font-size:12.5px;display:flex;flex-direction:column;gap:5px}
+#about p b,#about li b{color:var(--ink);font-weight:600}
+#about a{color:var(--amber)}
+.leaflet-container .leaflet-control-attribution{background:#111a2be6;color:var(--ink2);padding:2px 6px}
+.leaflet-container .leaflet-control-attribution a{color:var(--amber)}
+.sub{font-size:13px!important}.hint{font-size:12.5px}
+#box{scrollbar-color:#3a4763 #111a2b;scrollbar-width:thin}
+#box::-webkit-scrollbar{width:10px}
+#box::-webkit-scrollbar-track{background:#111a2b}
+#box::-webkit-scrollbar-thumb{background:#3a4763;border-radius:5px;border:2px solid #111a2b}
+#box::-webkit-scrollbar-thumb:hover{background:#51607f}
+@media(max-width:760px){#box{width:250px;padding:10px}#map{right:250px}#bar{right:250px}#clock{min-width:100px;font-size:12px}#opts{grid-template-columns:1fr}}
+</style></head><body>
+<div id="map"></div>
+<div id="box"><div id="head"><h1><span class="pl">Przelot nad Polską</span><span class="en">Bird migration over Poland</span></h1><div id="langs" role="group" aria-label="Language"><button type="button" data-l="pl">PL</button><button type="button" data-l="en">EN</button></div></div>
+<p class="sub"><span class="pl">Nocna migracja ptaków jesienią 2026, odtworzona z radarów pogodowych</span><span class="en">Night-time bird migration in autumn 2026, reconstructed from weather radars</span></p>
+<div class="k"><span class="ln m"></span><span class="pl">gdzie ptaki są teraz (ostatnie 45 min)</span><span class="en">where the birds are now (last 45 min)</span></div>
+<div class="k"><span class="ln m a"></span><span class="pl">przebyta trasa, widziana przez radar</span><span class="en">route so far, seen by radar</span></div>
+<div class="k"><span class="ln p"></span><span class="pl">trasa szacowana, poza zasięgiem radaru</span><span class="en">estimated route, outside radar range</span></div>
+<div class="k"><span class="ln r"></span><span class="pl">deszcz</span><span class="en">rain</span></div>
+<div id="opts"><label><input type="checkbox" id="rainon" checked><span class="pl">Deszcz</span><span class="en">Rain</span></label>
+<label><input type="checkbox" id="pred" checked><span class="pl">Trasy szacowane</span><span class="en">Estimated routes</span></label>
+<label><input type="checkbox" id="circ"><span class="pl">Wielkość grup</span><span class="en">Group size</span></label>
+<label><input type="checkbox" id="rings"><span class="pl">Zasięg radarów</span><span class="en">Radar range</span></label></div>
+<div id="sum"></div>
+<p class="hint"><span class="pl">Wybierz noc. Im jaśniejszy dzień, tym większy przelot. Noc 15.10 zaczyna się wieczorem 15 października.</span><span class="en">Pick a night. The brighter the day, the stronger the migration. The night of 15 Oct starts on the evening of 15 October.</span></p>
+<div id="cal"></div>
+<section id="about"><div class="pl">
+<h2>Co tu widać</h2>
+<p>Jesienią nad Polską przelatują nocą ptaki wędrujące na zimowiska. Ta mapa pokazuje ich ruch z dwóch miesięcy 2026 roku. Wybierz noc w kalendarzu, a potem przesuń suwak godzin albo naciśnij Odtwórz.</p>
+<p>Kreska nie oznacza jednego stada. To umowna porcja ptaków lecących szerokim frontem. Im grubsza kreska, tym większy przelot, ale nie da się z niej odczytać liczby ptaków ani gatunków.</p>
+<h2>Skąd radar wie, że to ptaki</h2>
+<p>Radar pogodowy mierzy nie tylko deszcz, ale też prędkość wszystkiego, co jest w powietrzu. Owady i pył dryfują z wiatrem, a ptak leci o własnych siłach. Za ptaki uznajemy więc echo, które po odjęciu wiatru porusza się co najmniej 5 m/s (18 km/h) i nie jest opadem.</p>
+<p>Takie echo pojawia się około pół godziny po zachodzie Słońca, a najsilniejsze jest około 4,5 godziny po nim.</p>
+<h2>Jak powstają trasy i szacunki</h2>
+<ol>
+<li>Co 15 minut każdy radar podaje, ile ruchu ptaków widzi w 24 sektorach wokół siebie, w odległości 25–115 km.</li>
+<li>Grupy przesuwamy z prędkością i w kierunku zmierzonym przez radary w promieniu 200 km. Bliższe radary liczą się bardziej.</li>
+<li>Gdy radar widzi więcej ptaków, niż jest na mapie, grupa rośnie albo powstaje nowa. Gdy widzi mniej, grupa maleje.</li>
+<li>Grupa poza zasięgiem 125 km lub tam, gdzie żaden radar nie może jej sprawdzić z powodu opadu, leci dalej bez korekt. To jest <b>trasa szacowana</b>.</li>
+<li>Jeśli w promieniu 200 km nikt nie mierzy ruchu ptaków, łączymy wiatr z modelu pogody na wysokości 1200 m z typowym lotem ptaków: 8 m/s na południowy zachód (235°).</li>
+<li>Po wschodzie Słońca grupy stopniowo lądują i znikają z mapy.</li>
+</ol>
+<p>To rekonstrukcja minionych nocy, a nie prognoza na przyszłość.</p>
+<h2>Na ile można temu ufać</h2>
+<p id="note-pl"></p>
+<p id="rain-pl"></p>
+<p>Na trasy szacowane patrz więc jak na kierunek, a nie dokładną pozycję. Dane obejmują tylko jeden sezon. Domieszki owadów nie da się w pełni wykluczyć, a tam, gdzie pada, radar nie widzi ptaków, więc brak kresek w deszczu nie zawsze oznacza brak przelotu. Noce bez koloru w kalendarzu to noce, w których model nie znalazł żadnej grupy.</p>
+<h2>Dla ornitologów: metoda</h2>
+<ul>
+<li><b>Profile:</b> VVP w pierścieniu 5–35 km, warstwy co 200 m do 4 km, elewacje do 15°, |V<sub>r</sub>| ≥ 1 m/s, co 5 min, bez komórek opadowych (≥ 5 dBZ).</li>
+<li><b>Klasyfikacja:</b> brak polarymetrii w danych OPERA, więc ptaki rozpoznajemy po prędkości względem powietrza ≥ 5 m/s. To kryterium ruchu, nie taksonomii.</li>
+<li><b>Natężenie:</b> DBZH jest silnie cenzurowany, więc nie liczymy η, gęstości ani MTR. Wskaźnik to suma spójnego pokrycia echem razy prędkość względem ziemi w warstwach 200–3000 m nad anteną. Jest względny i zależy od czułości stacji.</li>
+<li><b>Mapa przestrzenna:</b> pokrycie ruchomym echem na elewacji 1,5° skalowane do wskaźnika z pierścienia 5–35 km. Asymilacja co 15 min, łączenie grup bliższych niż 35 km.</li>
+<li><b>Wiatr:</b> archiwum modeli Open-Meteo na 925, 850 i 700 hPa. Względem VVP przy opadzie rozjazd wynosi około 1 m/s na zachód, co może zawyżać prędkości własne do około 0,8 m/s.</li>
+<li><b>Sezon:</b> kurs około 235°, tor około 212°, prędkość własna 8–9 m/s, średnia wysokość około 1250 m nad anteną. Połowa sezonowego wskaźnika do 29 IX, 90% do 18 X. Góra Św. Anny pominięta, bo jej VRADH jest prawie pusty.</li>
+<li><b>Bałtyk:</b> w suche noce przy Gdyni 0,6% bramek z ruchem nad morzem wobec 5,2% nad lądem w tym samym zasięgu.</li>
+</ul>
+<h2>Źródła danych</h2>
+<ul>
+<li><b>Radary:</b> <a href="https://eumetnet.github.io/openradardata-documentation/">EUMETNET OPERA Open Radar Data</a>, wolumeny PVOL polskich stacji sieci POLRAD (IMGW-PIB), CC BY 4.0. Zebrane 30 VIII – 1 XI 2026.</li>
+<li><b>Deszcz:</b> kompozyt OPERA NIMBUS RATE, © EUMETNET, CC BY 4.0, dostępny od 2 IX 2026.</li>
+<li><b>Pogoda:</b> <a href="https://open-meteo.com/">Weather data by Open-Meteo.com</a>, CC BY 4.0.</li>
+<li><b>Mapa:</b> © <a href="https://www.openstreetmap.org/copyright">współtwórcy OpenStreetMap</a>.</li>
+</ul>
+<p>Dane zostały przetworzone. Trasy, wskaźnik i szacunki są wynikiem własnej analizy i nie pochodzą od dostawców danych, którzy nie odpowiadają za te wyniki.</p>
+<h2>Kontakt</h2>
+<p>Uwagi, błędy i pomysły: <a href="https://github.com/kazek/przelot-nad-polska/issues">napisz w Issues na GitHubie</a>.</p>
+</div><div class="en">
+<h2>What you are seeing</h2>
+<p>Every autumn, migrating birds cross Poland at night on their way to wintering grounds. This map shows their movement over two months of 2026. Pick a night in the calendar, then drag the time slider or press Play.</p>
+<p>A line is not a single flock. It stands for a notional share of birds flying on a broad front. A thicker line means stronger migration, but it does not tell you how many birds there were or which species.</p>
+<h2>How a radar can tell it is birds</h2>
+<p>Weather radars measure rain, and also the speed of whatever is in the air. Insects and dust drift with the wind, while a bird flies under its own power. So we count as birds any echo that still moves at 5 m/s (18 km/h) or more once the wind is subtracted, and that is not precipitation.</p>
+<p>This echo appears about half an hour after sunset and is strongest about 4.5 hours after it.</p>
+<h2>How routes and estimates are made</h2>
+<ol>
+<li>Every 15 minutes, each radar reports how much bird movement it sees in 24 sectors around it, 25–115 km away.</li>
+<li>Groups move at the speed and direction measured by radars within 200 km. Closer radars count for more.</li>
+<li>When a radar sees more birds than the map holds, a group grows or a new one appears. When it sees fewer, the group shrinks.</li>
+<li>A group beyond the 125 km range, or where no radar can check it because of precipitation, flies on without corrections. This is an <b>estimated route</b>.</li>
+<li>If no radar within 200 km measures bird movement, we combine model wind at 1200 m with typical bird flight: 8 m/s towards the south-west (235°).</li>
+<li>After sunrise, groups gradually land and disappear from the map.</li>
+</ol>
+<p>This reconstructs past nights. It is not a forecast of future ones.</p>
+<h2>How far you can trust it</h2>
+<p id="note-en"></p>
+<p id="rain-en"></p>
+<p>So treat estimated routes as a direction, not an exact position. The data cover a single season. Some insects may remain in the signal, and radars cannot see birds where it rains, so missing lines in rain do not always mean no migration. Nights without colour in the calendar are nights when the model found no groups.</p>
+<h2>For ornithologists: method</h2>
+<ul>
+<li><b>Profiles:</b> VVP in a 5–35 km ring, 200 m layers up to 4 km, elevations up to 15°, |V<sub>r</sub>| ≥ 1 m/s, every 5 min, excluding precipitation cells (≥ 5 dBZ).</li>
+<li><b>Classification:</b> OPERA data carry no polarimetry, so birds are identified by airspeed ≥ 5 m/s. This is a movement criterion, not a taxonomic one.</li>
+<li><b>Intensity:</b> DBZH is heavily censored, so we do not compute η, density or MTR. The index is coherent echo cover times ground speed, summed over layers 200–3000 m above the antenna. It is relative and depends on station sensitivity.</li>
+<li><b>Spatial map:</b> moving-echo cover at 1.5° elevation, scaled to the index from the 5–35 km ring. Assimilation every 15 min, groups closer than 35 km are merged.</li>
+<li><b>Wind:</b> Open-Meteo model archive at 925, 850 and 700 hPa. Compared with VVP near precipitation it is offset by about 1 m/s to the west, which may inflate airspeeds by up to about 0.8 m/s.</li>
+<li><b>Season:</b> heading about 235°, track about 212°, airspeed 8–9 m/s, mean height about 1250 m above the antenna. Half of the seasonal index passed by 29 Sep, 90% by 18 Oct. Góra Św. Anny is left out because its VRADH is nearly empty.</li>
+<li><b>Baltic:</b> on dry nights near Gdynia, 0.6% of gates show movement over sea against 5.2% over land at the same range.</li>
+</ul>
+<h2>Data sources</h2>
+<ul>
+<li><b>Radar:</b> <a href="https://eumetnet.github.io/openradardata-documentation/">EUMETNET OPERA Open Radar Data</a>, PVOL volumes from Polish POLRAD stations (IMGW-PIB), CC BY 4.0. Collected 30 Aug – 1 Nov 2026.</li>
+<li><b>Rain:</b> OPERA NIMBUS RATE composite, © EUMETNET, CC BY 4.0, available from 2 Sep 2026.</li>
+<li><b>Weather:</b> <a href="https://open-meteo.com/">Weather data by Open-Meteo.com</a>, CC BY 4.0.</li>
+<li><b>Map:</b> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>.</li>
+</ul>
+<p>The data have been processed. Routes, the index and estimates come from our own analysis, not from the data providers, who are not responsible for these results.</p>
+<h2>Contact</h2>
+<p>Comments, bugs and ideas: <a href="https://github.com/kazek/przelot-nad-polska/issues">open an issue on GitHub</a>.</p>
+</div></section></div>
+<div id="bar"><div id="row"><button id="play" type="button"></button><div id="track"><input id="slide" type="range" min="0" max="1" value="0" aria-label="Time"><div id="ticks"></div></div><span id="clock"></span></div></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+function pickLang(){const q=new URLSearchParams(location.search).get('lang');if(q==='pl'||q==='en')return q;try{const v=localStorage.getItem('lang');if(v==='pl'||v==='en')return v}catch(e){}return (navigator.language||'').toLowerCase().startsWith('pl')?'pl':'en'}
+let lang=pickLang();const tr=(pl,en)=>lang==='en'?en:pl;
+const num=(x,d,l=lang)=>{const t=x.toFixed(d);return l==='en'?t:t.replace('.',',')};
+function setLang(l){lang=l;document.documentElement.lang=l;document.title=tr('Przelot nad Polską','Bird migration over Poland');try{localStorage.setItem('lang',l)}catch(e){}document.querySelectorAll('#langs button').forEach(b=>{const on=b.dataset.l===l;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)});setPlay();if(idx.length){drawCal();if(N)draw(cur)}}
+function setPlay(){$('play').textContent=timer?tr('Pauza','Pause'):tr('Odtwórz','Play')}
+$('langs').onclick=e=>{const b=e.target.closest('button');if(b)setLang(b.dataset.l)};
+const map=L.map('map',{preferCanvas:false,zoomControl:true}).setView([52,19.3],6);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · radar, rain: EUMETNET OPERA, IMGW-PIB (CC BY 4.0) · <a href="https://open-meteo.com/">Weather data by Open-Meteo.com</a> · <a href="https://github.com/kazek/przelot-nad-polska/issues">Issues</a>',maxZoom:10}).addTo(map);
+const rainImg=L.imageOverlay('data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',[[46,10],[58,28]],{opacity:.75,interactive:false}).addTo(map);
+map.createPane('ringPane').style.zIndex=380;
+const layer=L.layerGroup().addTo(map),trails=L.layerGroup().addTo(map),rings=L.layerGroup(),sites=L.layerGroup().addTo(map);
+let idx=[],N=null,cur=0,timer=null,markers={};
+const R=m=>3+Math.sqrt(m)*13,W=m=>.8+Math.sqrt(m)*2.2;
+const AMB='#f7b23b',GRY='#aeb6c4',GRY_HEAD='#e4e8ef',HEAD=3,lineR=L.canvas({padding:.3});
+function pane(name,z,o){const q=map.createPane(name);q.style.zIndex=z;q.style.opacity=o;q.style.pointerEvents='none';return L.canvas({padding:.3,pane:name})}
+const trailR=pane('trailLines',390,.32),predR=pane('predLines',391,.4);
+function drawTrail(g,k,alive,showP){const hb=alive?Math.max(0,k-HEAD):k;for(let a=0;a<k;){const p=g.pred[a],h=a>=hb;let b=a+1;while(b<k&&g.pred[b]===p&&b!==hb&&b-a<4)b++;if(!(p&&!showP)){let m=0;for(let i=a;i<=b;i++)m+=g.size[i];m/=b-a+1;L.polyline(g.lat.slice(a,b+1).map((v,i)=>[v,g.lon[a+i]]),{renderer:h?lineR:(p?predR:trailR),color:h?(p?GRY_HEAD:AMB):(p?GRY:AMB),weight:h?W(m)+.6:W(m),opacity:1,lineCap:'round',lineJoin:'round',interactive:false}).addTo(trails)}a=b}}
+const stamp=i=>N.iso[i].slice(0,16).replace(/[-:]/g,''),cache={};
+const zone=new Intl.DateTimeFormat('pl-PL',{timeZone:'Europe/Warsaw',hour:'2-digit',minute:'2-digit'});
+const dirs={pl:['północ','północny wschód','wschód','południowy wschód','południe','południowy zachód','zachód','północny zachód'],en:['north','north-east','east','south-east','south','south-west','west','north-west']},dn=d=>dirs[lang][Math.round(d/45)%8];
+const human=d=>{const[y,m,g]=d.split('-');return lang==='en'?`${+g} ${['Aug','Sep','Oct','Nov'][+m-8]}`:`${+g}.${m}`};
+const nightOf=d=>tr('noc ','night of ')+human(d);
+async function init(){const r=await(await fetch('data/index.json')).json();idx=r.index;const v=r.validation;
+const c2=(x,l)=>num(x,2,l);
+$('note-pl').innerHTML=`<b>Test:</b> wyłączaliśmy po jednym radarze i sprawdzaliśmy, co model przewidzi w tym miejscu. Dobrze wskazuje, gdzie ptaków jest więcej (korelacja rang ${c2(v.model_rank_within_night,'pl')}, zwykła interpolacja z sąsiednich radarów ${c2(v.base_rank_within_night,'pl')}), ale słabo kiedy i ile (${c2(v.model,'pl')} wobec ${c2(v.base,'pl')}).`;
+$('note-en').innerHTML=`<b>Test:</b> we switched off one radar at a time and checked what the model predicted there. It is good at showing where birds are more numerous (rank correlation ${c2(v.model_rank_within_night,'en')}, against ${c2(v.base_rank_within_night,'en')} for plain interpolation from neighbouring radars) but weak on when and how many (${c2(v.model,'en')} against ${c2(v.base,'en')}).`;
+try{const q=await(await fetch('data/rain_stats.json')).json(),x=Math.round(q.dry_med/q.wet_dusk_med);
+$('rain-pl').innerHTML=`<b>Deszcz:</b> po wieczorze z deszczem o zmierzchu przelot w późniejszych, suchych godzinach był około ${x} razy słabszy niż po suchym wieczorze, ale takich przypadków jest tylko ${q.n_wet}, a deszcz często idzie w parze z niekorzystnym wiatrem. To wskazówka, nie dowód.`;
+$('rain-en').innerHTML=`<b>Rain:</b> after rain at dusk, migration in the later, dry hours was about ${x} times weaker than after a dry evening, but there are only ${q.n_wet} such cases, and rain often comes with unfavourable wind. This is a hint, not proof.`}catch(e){}
+drawCal();const u=new URLSearchParams(location.search),best=idx.reduce((a,b)=>b.total>a.total?b:a);load(u.get('night')||best.night,u.get('t')||'22:00')}
+const MON=[[{pl:'Wrzesień 2026',en:'September 2026'},2026,8],[{pl:'Październik 2026',en:'October 2026'},2026,9]],DAYS={pl:['P','W','Ś','C','P','S','N'],en:['M','T','W','T','F','S','S']};
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function level(r){return r<=0?0:r<.2?1:r<.4?2:r<.7?3:4}
+function drawCal(){const by={};idx.forEach(n=>by[n.night]=n);const sorted=idx.map(i=>i.total).sort((a,b)=>a-b),mx=sorted[Math.floor(sorted.length*.97)];
+$('cal').innerHTML=MON.map(([nm,y,m])=>{let c=DAYS[lang].map(d=>`<i>${d}</i>`).join('');const first=new Date(y,m,1),lead=(first.getDay()+6)%7;
+const end=new Date(y,m+1,0).getDate(),cells=Math.ceil((lead+end)/7)*7;
+for(let i=0;i<cells;i++){const d=new Date(y,m,1-lead+i),k=iso(d),inside=d.getMonth()===m,n=by[k];
+if(n&&(inside||k==='2026-08-31'))c+=`<button type="button" class="l${level(n.total/mx)}" data-n="${k}" title="${nightOf(k)}, ${tr('szczytowe natężenie','peak intensity')} ${n.total.toFixed(0)}" aria-label="${nightOf(k)}">${d.getDate()}</button>`;
+else c+=`<span>${d.getDate()}</span>`}
+return `<div class="mon"><b>${nm[lang]}</b><div class="days">${c}</div></div>`}).join('');
+$('cal').onclick=e=>{const b=e.target.closest('button');if(b)load(b.dataset.n,N&&N.times[cur])};markCal()}
+function markCal(){document.querySelectorAll('#cal button').forEach(b=>b.classList.toggle('on',!!N&&b.dataset.n===N.night))}
+function drawTicks(){const n=N.times.length-1;$('ticks').innerHTML=N.iso.map((t,i)=>{const h=zone.format(new Date(t+'Z'));return h.endsWith(':00')&&+h.slice(0,2)%2===0?`<span style="left:${(i/n*100).toFixed(2)}%">${h.slice(0,2)}:00</span>`:''}).join('')}
+function step(d){const i=idx.findIndex(x=>x.night===N.night)+d;if(i>=0&&i<idx.length)load(idx[i].night,N.times[cur])}
+async function load(name,at){N=await(await fetch('data/'+name+'.json')).json();layer.clearLayers();sites.clearLayers();rings.clearLayers();markers={};
+Object.values(N.stations).forEach(s=>{L.circleMarker([s.lat,s.lon],{radius:3,color:'#fff',weight:1,fillOpacity:1}).bindTooltip(s.name).addTo(sites);L.circle([s.lat,s.lon],{radius:125000,pane:'ringPane',color:'#dbe4f2',weight:1.5,opacity:.75,fillColor:'#dbe4f2',fillOpacity:.07,interactive:false}).addTo(rings)});
+const sl=$('slide');sl.max=N.times.length-1;const t=at?N.times.indexOf(at):-1;sl.value=t>=0?t:Math.min(+sl.value,N.times.length-1);N.times.forEach((_,i)=>{const k=stamp(i);if(!(k in cache)){const im=new Image();im.src='rain/'+k+'.png';cache[k]=im}});markCal();drawTicks();draw(+sl.value)}
+function draw(f){cur=f;trails.clearLayers();const showP=$('pred').checked,showC=$('circ').checked;const rk=stamp(f),ri=cache[rk];if($('rainon').checked&&ri&&!(ri.complete&&!ri.naturalWidth)){rainImg.setUrl('rain/'+rk+'.png');rainImg.setOpacity(.75)}else rainImg.setOpacity(0);let meas=0,pr=0,seen=new Set();
+for(const g of N.groups){const k=f-g.first;if(k<0)continue;drawTrail(g,Math.min(k,g.size.length-1),k<g.size.length,showP);if(k>=g.size.length)continue;const m=g.size[k],p=g.pred[k];if(p)pr+=m;else meas+=m;if(p&&!showP)continue;seen.add(g.id);const ll=[g.lat[k],g.lon[k]];let c=markers[g.id];
+const style=showC?(p?{color:GRY,weight:1.5,dashArray:'4 4',fillOpacity:.06,fillColor:GRY}:{color:AMB,weight:1,dashArray:null,fillOpacity:.5,fillColor:AMB}):{color:p?GRY_HEAD:AMB,weight:0,dashArray:null,fillOpacity:.95,fillColor:p?GRY_HEAD:AMB};
+if(!c){c=markers[g.id]=L.circleMarker(ll,style).addTo(layer).bindTooltip('')}c.setLatLng(ll);c.setStyle(style);c.setRadius(showC?R(m):Math.max(2,W(m)*.9));c.setTooltipContent(`${p?tr('trasa szacowana','estimated route'):tr('widziana przez radar','seen by radar')}\n${tr('natężenie','intensity')} ${num(m,1)}\n${Math.round(g.spd[k]*3.6)} km/h (${g.spd[k].toFixed(0)} m/s)\n${tr('kierunek','direction')}: ${dn(g.dir[k])} (${g.dir[k]}°)`);
+}
+for(const id in markers)if(!seen.has(+id)){layer.removeLayer(markers[id]);delete markers[id]}
+const d=new Date(N.iso[f]+'Z');$('clock').textContent=`${zone.format(d)} ${tr('PL','Poland')}\n${N.times[f]} UTC · ${nightOf(N.night)}`;$('sum').textContent=tr(`Natężenie teraz: radar ${Math.round(meas)}, szacunek ${Math.round(pr)}`,`Intensity now: radar ${Math.round(meas)}, estimated ${Math.round(pr)}`)}
+$('slide').oninput=e=>draw(+e.target.value);['pred','circ','rainon'].forEach(i=>$(i).onchange=()=>draw(cur));
+$('rings').onchange=e=>{e.target.checked?rings.addTo(map):map.removeLayer(rings)};
+$('play').onclick=()=>{const b=$('play');if(timer){clearInterval(timer);timer=null;setPlay();return}timer=setInterval(()=>{const s=$('slide'),n=(+s.value+1)%N.times.length;s.value=n;draw(n)},220);setPlay()};
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'&&e.target.type!=='checkbox'&&e.target.type!=='range')return;if(e.key===' '){e.preventDefault();$('play').click()}if(e.key==='['){step(-1)}if(e.key===']'){step(1)}});
+setLang(lang);init();
+</script></body></html>
